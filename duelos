@@ -1,0 +1,140 @@
+if(mensaje[0]==="!duelo"){
+      if(!dueloActivo){
+        dueloActivo=true;;
+        let mentioned = msg.mentions.members.first();
+        let autor = msg.author.id;
+        let autorSp = userSp(autor);
+        let valor;
+        if(mensaje[2]){
+          if(!isNaN(mensaje[2])){
+            valor = Math.abs(mensaje[2]);
+          }else if(mensaje[2]==="all" && autorSp>0){
+            valor = 0;
+          }else{
+            valor = 1;
+          }
+        }else{
+          valor = 1;
+        }
+        let embed,embed2;
+        if(autorSp>=valor){
+          let rand = Math.random();
+          if(mentioned){
+            let mentionedSp = userSp(mentioned);
+            if(valor==0 && mentionedSp>0){
+              valor = autorSp>mentionedSp ? mentionedSp : autorSp;
+            }
+            if(valor>0 && mentionedSp>=valor){
+              modifyUser(autor,false,-valor);
+              const filter = (reaction, user) => {return (user.id == mentioned) && (reaction.emoji.name === "👍" || reaction.emoji.name === "👎")};
+              embed = new Discord.MessageEmbed()
+                .setColor("#00BFFF")
+                .setTitle("¡"+userName(autor)+" desafía a "+userName(mentioned)+"!")
+                .setImage("https://cdn.discordapp.com/attachments/732342721217429614/738015201206468698/medium.png")///avaar del ganador
+                .setDescription("**La pregunta es:**\n¿<@"+mentioned+"> aceptará el duelo por **"+valor+" SP**?\n\n:thumbsup: **Aceptar**  :heavy_minus_sign:  :thumbsdown: **Sin huevos**")
+
+              msg.channel.send(embed).then(m=>{
+                m.react("👍").then(() => m.react("👎"));
+                m.awaitReactions(filter, {max: 1, time: 30000, errors: ["time"]})
+                  .then(collected => {
+                    const reaction = collected.first();
+                    if(reaction.emoji.name == "👍"){
+                      modifyUser(mentioned,false,-valor);
+                      let winner = rand<0.5 ? autor : mentioned;
+                      modifyUser(winner,false, valor*2)
+                      let avatar = client.guilds.resolve("602671289605292062").members.resolve(winner).user.avatar;
+                      embed2 = new Discord.MessageEmbed()
+                        .setColor("#32CD32")
+                        .setTitle("¡Ha ganado "+userName(winner)+"!")
+                        .setThumbnail("https://cdn.discordapp.com/avatars/" + winner + "/" + avatar + ".png")
+                        .setDescription("Se lleva la suma de **"+valor+" SP**\n\n:moneybag: "+userName(autor)+": **"+userSp(autor)+"** Sei Points\n:moneybag: "+userName(mentioned)+": **"+userSp(mentioned)+"** Sei Points")
+                    }else{
+                      embed2 = new Discord.MessageEmbed()
+                        //.setColor("#1E90FF")
+                        .setTitle("¡"+userName(mentioned)+" rechazó el duelo!")
+                        .setThumbnail("https://cdn.discordapp.com/attachments/732342721217429614/737670666358095912/loser.png")
+                        .setDescription("Hay gente que le teme al éxito.\nNo todos nacieron para ser grandes.")
+                      modifyUser(autor,false,valor);
+                    }
+                    m.edit(embed2);
+                    dueloActivo=false;
+                  }).catch(collected => {
+                    embed2 = new Discord.MessageEmbed()
+                      //.setColor("#1E90FF")
+                      .setTitle("¡"+userName(mentioned)+" se cagó!")
+                      .setThumbnail("https://cdn.discordapp.com/attachments/732342721217429614/737670666358095912/loser.png")
+                      .setDescription("Hay gente que le teme al éxito.\nNo todos nacieron para ser grandes.")
+                    modifyUser(autor,false,valor);
+                    m.edit(embed2);
+                    dueloActivo=false;
+                  })
+              })            
+            }else{
+              msg.channel.send("<@"+mentioned+"> no dispone de suficientes SP para aceptar el duelo.")
+              dueloActivo=false;
+            }
+          }else{
+            //duelo libre
+            if(mensaje[1]){
+              if(!isNaN(mensaje[1])){
+                valor = Math.abs(mensaje[1]);
+              }else if(mensaje[1]==="all"){
+                valor = 0;
+              }else{
+                valor = 1;
+              }
+            }else{
+              valor = 1;
+            }
+            const filter = (reaction, user) => {return  userSp(user.id)>=valor && userSp(user.id)>0 && reaction.emoji.name === "👍" && user.id != autor};
+            embed = new Discord.MessageEmbed()
+              .setColor("#00BFFF")
+              .setTitle("¡"+userName(autor)+" desafía a TODOS!")
+              .setImage("https://cdn.discordapp.com/attachments/732342721217429614/738015201206468698/medium.png")///avaar del ganador
+              .setDescription("**La pregunta es:**\n¿Quién aceptará el duelo por **"+(valor==0 ? "TODOS sus " : valor)+" SP**?\n\n:thumbsup:  **¡Sé el Primero en Reaccionar!**")
+            msg.channel.send(embed).then(m=>{
+              m.react("👍").then(()=>{
+                let retador,retadorSp;
+                let collector = m.createReactionCollector(filter, {max: 1, time: 25000});
+                collector.on("collect", (reaction, user) => {
+                  if(!user.bot){
+                    retador = user.id;
+                    retadorSp = userSp(retador);
+                    if(valor==0){
+                      valor = autorSp>retadorSp ? retadorSp : autorSp;
+                    }
+                  }
+                });
+                collector.on("end", collected =>{
+                  if(collected.size>0){
+                    modifyUser(autor,false,-valor)
+                    modifyUser(retador,false,-valor)
+                    let winner = rand<0.5 ? autor : retador;
+                    modifyUser(winner,false,valor*2)
+                    let avatar = client.guilds.resolve("602671289605292062").members.resolve(winner).user.avatar;
+                    embed2 = new Discord.MessageEmbed()
+                      .setColor("#32CD32")
+                      .setTitle("¡"+userName(winner)+" ha ganado!")
+                      .setThumbnail("https://cdn.discordapp.com/avatars/" + winner + "/" + avatar + ".png")
+                      .setDescription("Se lleva la suma de **"+valor+" SP**\n\n:moneybag: "+userName(autor)+": **"+userSp(autor)+"** Sei Points\n:moneybag: "+userName(retador)+": **"+userSp(retador)+"** Sei Points")
+                    
+                  }else{
+                    embed2 = new Discord.MessageEmbed()
+                      //.setColor("#1E90FF")
+                      .setTitle("¡"+userName(autor)+" los intimida a TODOS!")
+                      .setThumbnail("https://cdn.discordapp.com/attachments/732342721217429614/737670666358095912/loser.png")
+                      .setDescription("Hay gente que le teme al éxito.\nNo todos nacieron para ser grandes.")
+                  }
+                  m.edit(embed2);
+                  dueloActivo = false;
+                })
+              })
+            })
+          }
+        }else{
+          msg.channel.send(spInsuficientes(autor));
+          dueloActivo=false;
+        }
+      }else{
+        msg.channel.send("Actualmente hay un duelo activo.\nNo pueden haber dos duelos al tiempo.")
+      }
